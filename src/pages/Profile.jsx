@@ -1,145 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { authAPI } from '../api';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../hooks/useProfile';
+import { Button, Card, Input, Alert, Spinner, Avatar, Tabs } from '../components/UI';
 
-const Profile = ({ token, onLogout }) => {
-  const [profile, setProfile] = useState(null);
-  const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState(null);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [msg, setMsg] = useState('');
-
-  const loadProfile = async () => {
-    try {
-      const data = await authAPI.getProfile();
-      setProfile(data);
-      setName(data.name);
-    } catch (err) {
-      console.error(err);
-      if(err.response?.status === 401) onLogout();
-    }
-  };
+export default function ProfilePage() {
+  const { user } = useAuth();
+  const { loading, error, success, updateProfile, changePassword, removeAvatar, clearMessages } = useProfile();
+  const [activeTab, setActiveTab] = useState('personal');
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [occupation, setOccupation] = useState(user?.occupation || '');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    if (token) loadProfile();
-  }, [token]);
+    setName(user?.name || '');
+    setPhone(user?.phone || '');
+    setOccupation(user?.occupation || '');
+  }, [user]);
 
-  const handleUpdateProfile = async (e) => {
+  const avatarPreview = useMemo(() => {
+    if (avatarFile) return URL.createObjectURL(avatarFile);
+    return user?.avatar_url || '';
+  }, [avatarFile, user?.avatar_url]);
+
+  useEffect(() => {
+    return () => { if (avatarFile) URL.revokeObjectURL(avatarPreview); };
+  }, [avatarPreview, avatarFile]);
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append('name', name);
-    if (avatar) formData.append('avatar', avatar);
+    setLocalError('');
     try {
-      await authAPI.updateProfile(formData);
-      setMsg({ text: 'Profile updated', type: 'success' });
-      loadProfile();
-    } catch (err) {
-      setMsg({ text: 'Failed to update profile: ' + (err.response?.data?.detail || err.message), type: 'error' });
-    }
+      await updateProfile({ name, phone, occupation }, avatarFile);
+      setAvatarFile(null);
+      setIsEditing(false);
+    } catch (err) { setLocalError(err?.message || 'Failed to update'); }
   };
 
-  const handlePasswordChange = async (e) => {
+  const handleChangePw = async (e) => {
     e.preventDefault();
+    setLocalError('');
+    if (newPw !== confirmPw) { setLocalError('Passwords do not match'); return; }
+    if (newPw.length < 8) { setLocalError('Password must be at least 8 characters'); return; }
     try {
-      await authAPI.changePassword(currentPassword, newPassword);
-      setMsg({ text: 'Password changed successfully', type: 'success' });
-      setCurrentPassword('');
-      setNewPassword('');
-    } catch (err) {
-      setMsg({ text: 'Failed to change password: ' + (err.response?.data?.detail || err.message), type: 'error' });
-    }
+      await changePassword(curPw, newPw);
+      setCurPw(''); setNewPw(''); setConfirmPw('');
+    } catch (err) { setLocalError(err?.message || 'Failed to change password'); }
   };
 
   const handleRemoveAvatar = async () => {
-    try {
-      await authAPI.removeAvatar();
-      setMsg({ text: 'Avatar removed', type: 'success' });
-      loadProfile();
-    } catch (err) {
-      setMsg({ text: 'Failed to remove avatar', type: 'error' });
-    }
+    setLocalError('');
+    try { await removeAvatar(); setAvatarFile(null); }
+    catch (err) { setLocalError(err?.message || 'Failed'); }
   };
 
-  if (!profile) return <div className="text-center mt-10"><p className="text-gray-500">Loading profile data...</p></div>;
+  const msg = localError || error || null;
+  const suc = !localError && !error && success ? success : null;
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-8 border-b pb-4">
-        <h2 className="text-3xl font-bold text-gray-900">My Profile</h2>
-      </div>
-      
-      {msg && (
-        <div className={`mb-6 p-4 rounded-md ${msg.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-          {msg.text}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Account Information</h3>
-          <div className="flex flex-col items-center mb-6">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="Avatar" className="w-32 h-32 rounded-full object-cover border-4 border-indigo-100 mb-4 shadow" />
-            ) : (
-              <div className="w-32 h-32 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-400 text-4xl font-bold mb-4 shadow">
-                {profile.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            {profile.avatar_url && (
-              <button onClick={handleRemoveAvatar} className="text-sm text-red-600 hover:text-red-800 underline">
-                Remove Avatar
-              </button>
-            )}
-          </div>
-          <div className="space-y-3">
-            <p className="text-gray-700"><span className="font-medium text-gray-900">Name:</span> {profile.name}</p>
-            <p className="text-gray-700"><span className="font-medium text-gray-900">Email:</span> {profile.email}</p>
-            <p className="text-gray-700">
-              <span className="font-medium text-gray-900">Role:</span> 
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                {profile.role}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-8">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Update Profile</h3>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">New Avatar</label>
-                <input type="file" onChange={e => setAvatar(e.target.files[0])} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-              </div>
-              <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Update Information
-              </button>
-            </form>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Change Password</h3>
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Current Password</label>
-                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">New Password</label>
-                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-              <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Change Password
-              </button>
-            </form>
-          </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="bg-white border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <h1 className="text-2xl font-extrabold text-slate-900">My Profile</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Manage your account details and security</p>
         </div>
       </div>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {msg && <Alert type="error" className="mb-6" onClose={() => { setLocalError(''); clearMessages(); }}>{msg}</Alert>}
+        {suc && <Alert type="success" className="mb-6" onClose={clearMessages}>{suc}</Alert>}
+
+        <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+          {/* Avatar Card */}
+          <Card className="h-fit text-center">
+            <div className="relative mx-auto mb-4 w-28 h-28 group">
+              <Avatar src={avatarPreview} name={name || user?.email} size="xl" className="w-28 h-28" />
+              <label className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center cursor-pointer transition-all">
+                <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">📷 Change</span>
+                <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} className="hidden" />
+              </label>
+            </div>
+            <p className="text-lg font-bold text-slate-900">{name || user?.email || 'User'}</p>
+            <p className="text-sm text-slate-500 capitalize">{user?.role?.toLowerCase() || 'Member'}</p>
+
+            {avatarFile && (
+              <Button variant="primary" fullWidth className="mt-4" onClick={handleSave} loading={loading}>Save Avatar</Button>
+            )}
+            {user?.avatar_url && !avatarFile && (
+              <Button variant="ghost" fullWidth className="mt-3" onClick={handleRemoveAvatar} disabled={loading}>Remove Avatar</Button>
+            )}
+          </Card>
+
+          {/* Tabs */}
+          <div>
+            <Tabs
+              activeTab={activeTab}
+              onTabChange={(t) => { setActiveTab(t); setLocalError(''); clearMessages(); }}
+              tabs={[
+                {
+                  id: 'personal',
+                  label: 'Personal Info',
+                  content: (
+                    <Card>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold text-slate-900">Personal Information</h2>
+                        <Button variant={isEditing ? 'ghost' : 'secondary'} size="sm" onClick={() => setIsEditing(!isEditing)}>
+                          {isEditing ? 'Cancel' : 'Edit Profile'}
+                        </Button>
+                      </div>
+                      <form className="space-y-4" onSubmit={handleSave}>
+                        <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} disabled={!isEditing || loading} />
+                        <Input label="Email" value={user?.email || ''} disabled />
+                        <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!isEditing || loading} placeholder="e.g., +977-9800000000" />
+                        <Input label="Occupation" value={occupation} onChange={(e) => setOccupation(e.target.value)} disabled={!isEditing || loading} />
+                        {isEditing && (
+                          <div className="flex gap-3 pt-2">
+                            <Button variant="secondary" type="button" fullWidth onClick={() => setIsEditing(false)}>Cancel</Button>
+                            <Button variant="primary" type="submit" fullWidth loading={loading}>Save Changes</Button>
+                          </div>
+                        )}
+                      </form>
+                    </Card>
+                  ),
+                },
+                {
+                  id: 'security',
+                  label: 'Account Security',
+                  content: (
+                    <Card>
+                      <h2 className="text-lg font-bold text-slate-900 mb-6">Change Password</h2>
+                      <form className="space-y-4" onSubmit={handleChangePw}>
+                        <Input label="Current Password" type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} disabled={loading} required />
+                        <Input label="New Password" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} disabled={loading} hint="Minimum 8 characters" required />
+                        <Input label="Confirm New Password" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} disabled={loading} required />
+                        <Button variant="primary" type="submit" fullWidth loading={loading}>Update Password</Button>
+                      </form>
+                    </Card>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        </div>
+
+        {loading && <div className="fixed bottom-6 right-6 bg-white rounded-full shadow-lg p-3"><Spinner size="sm" /></div>}
+      </main>
     </div>
   );
-};
-export default Profile;
+}

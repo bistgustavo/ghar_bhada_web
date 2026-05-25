@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useSelector } from 'react-redux';
 
 const features = [
   { icon: '🔍', title: 'Easy Search', desc: 'Filter by city, district, room type, and price range to find your ideal place.' },
@@ -17,28 +17,29 @@ const stats = [
 ];
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { token, user } = useSelector(state => state.auth);
+  const isAuthenticated = !!token && !!user;
 
   return (
     <div className="min-h-screen">
       {/* ═══════════════ HERO SECTION ═══════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-emerald-800">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-red-900">
         {/* Decorative dots */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-emerald-300 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-red-300 rounded-full blur-3xl" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6 text-sm text-white/90">
-              <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-red-300 rounded-full animate-pulse" />
               Nepal's Trusted Rental Platform
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
               Find Your Perfect
-              <span className="block text-emerald-200">Home in Nepal</span>
+              <span className="block text-red-200">Home in Nepal</span>
             </h1>
 
             <p className="mt-6 text-lg sm:text-xl text-white/80 max-w-xl leading-relaxed">
@@ -48,7 +49,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 to="/rooms"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-emerald-50 transition-all duration-200 shadow-lg hover:shadow-xl text-base"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-red-50 transition-all duration-200 shadow-lg hover:shadow-xl text-base"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 Browse Rooms
@@ -59,6 +60,14 @@ export default function HomePage() {
                   className="inline-flex items-center gap-2 px-8 py-3.5 bg-transparent border-2 border-white/40 text-white font-semibold rounded-xl hover:bg-white/10 transition-all duration-200 text-base"
                 >
                   Create Account
+                </Link>
+              )}
+              {isAuthenticated && user?.role === 'LANDLORD' && (
+                <Link
+                  to="/rooms/create"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-red-50 transition-all duration-200 shadow-lg text-base"
+                >
+                  ➕ List Your Room
                 </Link>
               )}
             </div>
@@ -111,7 +120,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ CTA ═══════════════ */}
-      <section className="bg-gradient-to-r from-primary-600 to-emerald-600">
+      <section className="bg-gradient-to-r from-primary-600 to-red-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20 text-center">
           <h2 className="text-3xl lg:text-4xl font-extrabold text-white mb-4">
             Ready to Find Your Next Home?
@@ -122,7 +131,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/rooms"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-emerald-50 transition-all shadow-lg text-base"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-red-50 transition-all shadow-lg text-base"
             >
               Start Browsing
             </Link>
@@ -132,6 +141,14 @@ export default function HomePage() {
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 border-2 border-white/40 text-white font-semibold rounded-xl hover:bg-white/10 transition-all text-base"
               >
                 List Your Property
+              </Link>
+            )}
+            {isAuthenticated && user?.role === 'LANDLORD' && (
+              <Link
+                to="/rooms/create"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-primary-700 font-bold rounded-xl hover:bg-red-50 transition-all shadow-lg text-base"
+              >
+                ➕ List Your Room
               </Link>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import userService from '../services/userService';
-import { useAuth } from '../context/AuthContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUser } from '../store/slices/authSlice';
 
 /**
  * useProfile: Custom hook for profile management operations
@@ -10,7 +11,8 @@ import { useAuth } from '../context/AuthContext';
  * @returns {Object} Profile management interface
  */
 export const useProfile = () => {
-  const { user, updateUser } = useAuth();
+  const { user } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -27,7 +29,7 @@ export const useProfile = () => {
       setSuccess(null);
 
       const updatedUser = await userService.updateProfile(updates, avatar);
-      updateUser(updatedUser);
+      dispatch(updateUser(updatedUser));
       setSuccess('Profile updated successfully');
 
       return updatedUser;
@@ -75,7 +77,7 @@ export const useProfile = () => {
 
       // Update user in context
       const updatedUser = { ...user, avatar_url: null };
-      updateUser(updatedUser);
+      dispatch(updateUser(updatedUser));
       setSuccess('Avatar removed successfully');
     } catch (err) {
       const errorMessage = err.message || 'Failed to remove avatar';

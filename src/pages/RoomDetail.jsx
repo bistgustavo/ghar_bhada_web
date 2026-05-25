@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import roomService from '../services/roomService';
-import { Badge, Button, Card, Spinner } from '../components/UI';
+import { Badge, Button, Card, Spinner, Alert } from '../components/UI';
+import { useDispatch, useSelector } from 'react-redux';
+import { initiateSubscription } from '../store/slices/subscriptionSlice';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 export default function RoomDetail() {
   const { id } = useParams();
@@ -10,6 +24,11 @@ export default function RoomDetail() {
   const [error, setError] = useState('');
   const [activeImg, setActiveImg] = useState(0);
 
+  const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
+  const { loading: subLoading, error: subError, currentSubscription } = useSelector(state => state.subscriptions);
+  const navigate = useNavigate();
+
   useEffect(() => {
     setLoading(true);
     roomService.getRoomById(id)
@@ -17,6 +36,17 @@ export default function RoomDetail() {
       .catch((err) => setError(err.message || 'Failed to load room'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleSubscribe = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    const result = await dispatch(initiateSubscription(id));
+    if (initiateSubscription.fulfilled.match(result)) {
+      navigate(`/tenant/payment/${result.payload.id}`);
+    }
+  };
 
   if (loading) return <Spinner size="lg" centered />;
 
@@ -31,7 +61,7 @@ export default function RoomDetail() {
     );
   }
 
-  const typeLabels = { single: 'Single Room', double: 'Double Room', flat: 'Flat/Apartment', house: 'House' };
+  const typeLabels = { SINGLE: 'Single Room', DOUBLE: 'Double Room', FLAT: 'Flat/Apartment', STUDIO: 'Studio' };
   const images = room.images?.length ? room.images : [];
 
   return (
@@ -70,7 +100,40 @@ export default function RoomDetail() {
             <Card>
               <h2 className="text-lg font-bold text-slate-900 mb-3">Description</h2>
               <p className="text-slate-600 leading-relaxed whitespace-pre-line">{room.description || 'No description provided.'}</p>
+              
+              {room.amenities && room.amenities.length > 0 && (
+                <div className="mt-6 border-t border-slate-100 pt-6">
+                  <h3 className="text-md font-bold text-slate-900 mb-3">Amenities</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {room.amenities.map((a, i) => (
+                      <span key={i} className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
+                        {a.name || a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
+
+            {/* Map */}
+            {room.lat && room.lng && (
+              <Card noPadding className="overflow-hidden">
+                <div className="p-4 border-b border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-900">Location Map</h2>
+                </div>
+                <div className="h-[300px] w-full relative z-10">
+                  <MapContainer center={[room.lat, room.lng]} zoom={14} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[room.lat, room.lng]}>
+                      <Popup>{room.title}</Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Right: Details */}
@@ -126,6 +189,23 @@ export default function RoomDetail() {
                   <p>{room.rent_note}</p>
                 </div>
               )}
+
+              {/* Action */}
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                {subError && <Alert type="error" className="mb-4">{subError}</Alert>}
+                {(!user || user.role === 'tenant') && (
+                  <Button 
+                    variant="primary" 
+                    size="lg" 
+                    fullWidth 
+                    onClick={handleSubscribe} 
+                    loading={subLoading}
+                    disabled={!room.is_available}
+                  >
+                    Subscribe to Connect
+                  </Button>
+                )}
+              </div>
             </Card>
 
             <Link to="/rooms" className="block">

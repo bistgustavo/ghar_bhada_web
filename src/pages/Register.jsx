@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useDispatch, useSelector } from 'react-redux';
+import { register } from '../store/slices/authSlice';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('TENANT');
+  const [role, setRole] = useState('tenant');
   const [avatar, setAvatar] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const dispatch = useDispatch();
+  const { loading } = useSelector(state => state.auth);
   const navigate = useNavigate();
 
   const handleAvatarChange = (e) => {
@@ -26,14 +27,15 @@ export default function Register() {
     e.preventDefault();
     setError('');
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
-    setLoading(true);
     try {
-      await register(name, email, password, role, avatar);
-      navigate('/profile');
+      const resultAction = await dispatch(register({ name, email, password, role, avatar }));
+      if (register.fulfilled.match(resultAction)) {
+        navigate('/profile');
+      } else {
+        setError(resultAction.payload || 'Registration failed');
+      }
     } catch (err) {
       setError(err.message || 'Registration failed');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -56,8 +58,8 @@ export default function Register() {
               <label className="block text-sm font-medium text-slate-700 mb-2">I want to</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { val: 'TENANT', label: '🔍 Find a Room', sub: 'Tenant' },
-                  { val: 'LANDLORD', label: '🏡 List Property', sub: 'Landlord' },
+                  { val: 'tenant', label: '🔍 Find a Room', sub: 'Tenant' },
+                  { val: 'landlord', label: '🏡 List Property', sub: 'Landlord' },
                 ].map((r) => (
                   <button
                     key={r.val}

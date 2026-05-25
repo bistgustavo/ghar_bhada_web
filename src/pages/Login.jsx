@@ -1,29 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useDispatch, useSelector } from 'react-redux';
+import { login } from '../store/slices/authSlice';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const dispatch = useDispatch();
+  const { loading } = useSelector(state => state.auth);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     try {
-      const user = await login(email, password);
-      if (user?.role === 'ADMIN') navigate('/admin');
-      else if (user?.role === 'LANDLORD') navigate('/landlord');
-      else navigate('/rooms');
+      const resultAction = await dispatch(login({ email, password }));
+      if (login.fulfilled.match(resultAction)) {
+        const user = resultAction.payload.user;
+        if (user?.role === 'admin') navigate('/admin');
+        else if (user?.role === 'landlord') navigate('/landlord');
+        else navigate('/rooms');
+      } else {
+        setError(resultAction.payload || 'Invalid email or password');
+      }
     } catch (err) {
       setError(err.message || 'Invalid email or password');
-    } finally {
-      setLoading(false);
     }
   };
 

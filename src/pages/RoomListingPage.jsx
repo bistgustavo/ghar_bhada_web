@@ -7,7 +7,7 @@ import { Button, Card, Badge, Skeleton, EmptyState, RangeSlider, Select } from '
 // ── ROOM CARD ───────────────────────────────────────────────────────────────
 const RoomCard = ({ room, onClick }) => {
   const [imgErr, setImgErr] = useState(false);
-  const typeLabels = { single: 'Single', double: 'Double', flat: 'Flat', house: 'House' };
+  const typeLabels = { SINGLE: 'Single', DOUBLE: 'Double', FLAT: 'Flat', STUDIO: 'Studio' };
 
   return (
     <Card clickable noPadding onClick={() => onClick(room.id)} className="overflow-hidden group">
@@ -63,10 +63,10 @@ const SkeletonCard = () => (
 const FilterPanel = ({ filters, onFilterChange, loading }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const roomTypes = [
-    { value: 'single', label: 'Single Room' },
-    { value: 'double', label: 'Double Room' },
-    { value: 'flat', label: 'Flat / Apartment' },
-    { value: 'house', label: 'House' },
+    { value: 'SINGLE', label: 'Single Room' },
+    { value: 'DOUBLE', label: 'Double Room' },
+    { value: 'FLAT', label: 'Flat / Apartment' },
+    { value: 'STUDIO', label: 'Studio' },
   ];
 
   const handleClear = () => {
@@ -121,24 +121,31 @@ const FilterPanel = ({ filters, onFilterChange, loading }) => {
 };
 
 // ── MAIN PAGE ────────────────────────────────────────────────────────────────
+import { fetchRooms, setFilters as setReduxFilters } from '../store/slices/roomsSlice';
+import { useDispatch, useSelector } from 'react-redux';
+
 export default function RoomListingPage() {
-  const { rooms, loading, error, filters, setFilters, hasMore, loadMore, total } = useRooms({ skip: 0, limit: 12 });
+  const dispatch = useDispatch();
+  const { rooms, loading, error, filters: reduxFilters, total } = useSelector(state => state.rooms);
   const navigate = useNavigate();
 
-  const [localFilters, setLocalFilters] = useState(filters);
+  const [localFilters, setLocalFilters] = useState(reduxFilters);
   const debouncedCity = useDebounce(localFilters.city, 400);
   const debouncedDistrict = useDebounce(localFilters.district, 400);
 
   useEffect(() => {
-    setFilters({ city: debouncedCity || undefined, district: debouncedDistrict || undefined });
-  }, [debouncedCity, debouncedDistrict]);
+    dispatch(setReduxFilters({ city: debouncedCity, district: debouncedDistrict }));
+  }, [debouncedCity, debouncedDistrict, dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchRooms(reduxFilters));
+  }, [reduxFilters, dispatch]);
 
   const handleFilterChange = (newFilters) => {
     setLocalFilters(newFilters);
     const { city, district, ...immediate } = newFilters;
-    // Only apply non-text filters immediately
     if (Object.keys(immediate).length > 0) {
-      setFilters(immediate);
+      dispatch(setReduxFilters(immediate));
     }
   };
 
@@ -180,7 +187,7 @@ export default function RoomListingPage() {
                 icon="🔍"
                 title="No rooms found"
                 description="Try adjusting your filters or search a different area."
-                action={<Button variant="primary" onClick={() => handleFilterChange({ city: '', district: '', room_type: '', min_price: undefined, max_price: undefined })}>Clear Filters</Button>}
+                action={<Button variant="primary" onClick={() => handleFilterChange({ city: '', district: '', room_type: '', min_price: '', max_price: '' })}>Clear Filters</Button>}
               />
             )}
 
@@ -192,11 +199,6 @@ export default function RoomListingPage() {
                     <RoomCard key={room.id} room={room} onClick={(id) => navigate(`/rooms/${id}`)} />
                   ))}
                 </div>
-                {hasMore && (
-                  <div className="mt-10 flex justify-center">
-                    <Button variant="outline" size="lg" onClick={loadMore} loading={loading}>Load More</Button>
-                  </div>
-                )}
               </>
             )}
           </div>

@@ -13,7 +13,7 @@ const userService = {
    * Backend expects multipart/form-data: name, email, password, role, avatar(optional)
    * Returns: { user, access_token, token_type }
    */
-  register: async (name, email, password, role = 'TENANT', avatar = null) => {
+  register: async (name, email, password, role = 'tenant', avatar = null) => {
     const formData = new FormData();
     formData.append('name', name);
     formData.append('email', email);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from './store/slices/authSlice';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Pages
@@ -8,15 +9,30 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
-import Admin from './pages/Admin';
+import Admin from './pages/admin/AdminDashboard';
 import RoomListingPage from './pages/RoomListingPage';
 import RoomDetail from './pages/RoomDetail';
-import LandlordDashboard from './pages/LandlordDashboard';
-import CreateRoomForm from './pages/CreateRoomForm';
+
+// Tenant Pages
+import TenantDashboard from './pages/tenant/TenantDashboard';
+import MySubscriptions from './pages/tenant/MySubscriptions';
+import PaymentPage from './pages/tenant/PaymentPage';
+import SavedRooms from './pages/tenant/SavedRooms';
+import MyConnections from './pages/tenant/MyConnections';
+import ChatScreen from './pages/tenant/ChatScreen';
+
+import LandlordDashboard from './pages/landlord/LandlordDashboard';
+import CreateRoomForm from './pages/landlord/CreateRoomForm';
+import RoomPhotosManager from './pages/landlord/RoomPhotosManager';
+import AmenitiesManager from './pages/landlord/AmenitiesManager';
+import RoomSubscriptions from './pages/landlord/RoomSubscriptions';
+import ConnectionManager from './pages/landlord/ConnectionManager';
 
 // ── NAVBAR ──────────────────────────────────────────────────────────────────
 function Navbar() {
-  const { token, user, logout } = useAuth();
+  const { token, user } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const handleLogout = () => dispatch(logout());
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -50,8 +66,11 @@ function Navbar() {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-6">
             {navLink('/rooms', 'Browse Rooms')}
-            {token && user?.role === 'LANDLORD' && navLink('/landlord', 'My Listings')}
-            {token && user?.role === 'ADMIN' && navLink('/admin', 'Admin')}
+            {token && user?.role === 'tenant' && navLink('/tenant', 'Dashboard')}
+            {token && user?.role === 'landlord' && navLink('/landlord', 'My Listings')}
+            {token && user?.role === 'landlord' && navLink('/rooms/create', '➕ Create Room')}
+            {token && user?.role === 'landlord' && navLink('/landlord/connections', 'Connections')}
+            {token && user?.role === 'admin' && navLink('/admin', 'Admin')}
           </div>
 
           {/* Desktop Auth */}
@@ -69,7 +88,7 @@ function Navbar() {
                   </div>
                   <span className="hidden lg:inline">{user?.name || 'Profile'}</span>
                 </Link>
-                <button onClick={logout} className="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">Logout</button>
+                <button onClick={handleLogout} className="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">Logout</button>
               </>
             )}
           </div>
@@ -88,8 +107,11 @@ function Navbar() {
         {mobileOpen && (
           <div className="md:hidden border-t border-slate-100 py-4 space-y-3 animate-fade-in">
             {navLink('/rooms', 'Browse Rooms')}
-            {token && user?.role === 'LANDLORD' && navLink('/landlord', 'My Listings')}
-            {token && user?.role === 'ADMIN' && navLink('/admin', 'Admin')}
+            {token && user?.role === 'tenant' && navLink('/tenant', 'Dashboard')}
+            {token && user?.role === 'landlord' && navLink('/landlord', 'My Listings')}
+            {token && user?.role === 'landlord' && navLink('/rooms/create', '➕ Create Room')}
+            {token && user?.role === 'landlord' && navLink('/landlord/connections', 'Connections')}
+            {token && user?.role === 'admin' && navLink('/admin', 'Admin')}
             <div className="border-t border-slate-100 pt-3 space-y-3">
               {!token ? (
                 <>
@@ -99,7 +121,7 @@ function Navbar() {
               ) : (
                 <>
                   <Link to="/profile" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-slate-600">My Profile</Link>
-                  <button onClick={() => { logout(); setMobileOpen(false); }} className="block text-sm font-medium text-red-600 w-full text-left">Logout</button>
+                  <button onClick={() => { handleLogout(); setMobileOpen(false); }} className="block text-sm font-medium text-red-600 w-full text-left">Logout</button>
                 </>
               )}
             </div>
@@ -111,8 +133,8 @@ function Navbar() {
 }
 
 // ── APP CONTENT ─────────────────────────────────────────────────────────────
-function AppContent() {
-  const { token, user } = useAuth();
+export default function App() {
+  const { token } = useSelector(state => state.auth);
 
   return (
     <Router>
@@ -130,12 +152,24 @@ function AppContent() {
         {/* Protected */}
         <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
 
+        {/* Tenant */}
+        <Route path="/tenant" element={<ProtectedRoute element={<TenantDashboard />} requiredRole="tenant" />} />
+        <Route path="/tenant/subscriptions" element={<ProtectedRoute element={<MySubscriptions />} requiredRole="tenant" />} />
+        <Route path="/tenant/payment/:id" element={<ProtectedRoute element={<PaymentPage />} requiredRole="tenant" />} />
+        <Route path="/tenant/saved-rooms" element={<ProtectedRoute element={<SavedRooms />} requiredRole="tenant" />} />
+        <Route path="/tenant/connections" element={<ProtectedRoute element={<MyConnections />} requiredRole="tenant" />} />
+        <Route path="/tenant/chat/:id" element={<ProtectedRoute element={<ChatScreen />} />} />
+
         {/* Landlord */}
-        <Route path="/landlord" element={<ProtectedRoute element={<LandlordDashboard />} requiredRole="LANDLORD" />} />
-        <Route path="/rooms/create" element={<ProtectedRoute element={<CreateRoomForm />} requiredRole="LANDLORD" />} />
+        <Route path="/landlord" element={<ProtectedRoute element={<LandlordDashboard />} requiredRole="landlord" />} />
+        <Route path="/rooms/create" element={<ProtectedRoute element={<CreateRoomForm />} requiredRole="landlord" />} />
+        <Route path="/landlord/rooms/:id/photos" element={<ProtectedRoute element={<RoomPhotosManager />} requiredRole="landlord" />} />
+        <Route path="/landlord/rooms/:id/amenities" element={<ProtectedRoute element={<AmenitiesManager />} requiredRole="landlord" />} />
+        <Route path="/landlord/rooms/:id/subscriptions" element={<ProtectedRoute element={<RoomSubscriptions />} requiredRole="landlord" />} />
+        <Route path="/landlord/connections" element={<ProtectedRoute element={<ConnectionManager />} requiredRole="landlord" />} />
 
         {/* Admin */}
-        <Route path="/admin" element={<ProtectedRoute element={<Admin />} requiredRole="ADMIN" />} />
+        <Route path="/admin" element={<ProtectedRoute element={<Admin />} requiredRole="admin" />} />
 
         {/* Fallback */}
         <Route path="*" element={
@@ -151,10 +185,4 @@ function AppContent() {
   );
 }
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
+

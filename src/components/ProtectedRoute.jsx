@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useSelector } from 'react-redux';
 
 /**
  * ProtectedRoute: Restricts route access based on authentication and role
@@ -28,7 +28,14 @@ export function ProtectedRoute({
   redirectTo = '/login',
   fallback = true,
 }) {
-  const { isAuthenticated, loading, user, hasRole } = useAuth();
+  const { token, loading, user } = useSelector(state => state.auth);
+  const isAuthenticated = !!token && !!user;
+  
+  const hasRole = (roles) => {
+    if (!user) return false;
+    if (typeof roles === 'string') return user.role === roles;
+    return Array.isArray(roles) && roles.includes(user.role);
+  };
 
   // Show loading while checking auth state
   if (loading && fallback) {
